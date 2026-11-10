@@ -1,1 +1,511 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DERKHSOUL // TELEMETRY f(t)</title>
+  <style>
+    :root {
+      --bg: #070709;
+      --panel: #0d0d12;
+      --border: #1e1e28;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #6366f1;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      min-height: 100vh;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .back-link {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--text); }
+    .btn {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .container {
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .header-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    h1 { font-size: 1.35rem; font-weight: 600; }
+    .subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .stats-row {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+    }
+    .stat-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.85rem;
+      border-radius: 6px;
+    }
+    .stat-box span { color: var(--muted); margin-right: 6px; }
+    .chart-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 360px;
+      display: block;
+      cursor: crosshair;
+    }
+    .admin-panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .admin-panel.active { display: flex; }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      align-items: center;
+    }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.35rem; }
+    input, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+    .quick-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 50;
+    }
+    .modal.active { display: flex; }
+    .modal-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      max-width: 420px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .status-msg { font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
 
+  <div class="topbar">
+    <a href="/" class="back-link">← DERKHSOUL.RU</a>
+    <button class="btn" id="authBtn">[ AUTH // OVERRIDE ]</button>
+  </div>
+
+  <div class="container">
+    <div class="header-info">
+      <div>
+        <h1>f(t) // ФАЗОВАЯ ДИНАМИКА</h1>
+        <div class="subtitle">Распределение функции по дням расчетного цикла (t = 1..31)</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-box"><span>ТЕКУЩИЙ t:</span><strong id="curDayStat">-</strong></div>
+        <div class="stat-box"><span>f(t):</span><strong id="curValStat">-</strong></div>
+        <div class="stat-box"><span>СРЕДНЕЕ:</span><strong id="avgValStat">-</strong></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <canvas id="chartCanvas"></canvas>
+    </div>
+
+    <!-- Панель управления (появляется только после входа) -->
+    <div class="admin-panel" id="adminPanel">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong style="color:var(--accent); font-size:0.85rem;">// ПАНЕЛЬ УПРАВЛЕНИЯ ГРАФИКОМ (Кликай прямо по графику или меняй ниже)</strong>
+        <button class="btn" id="logoutBtn">Выйти</button>
+      </div>
+
+      <div class="controls-grid">
+        <div>
+          <label>День месяца (t = 1..31)</label>
+          <select id="daySelect"></select>
+        </div>
+        <div>
+          <label>Значение f(t): <span id="valLabel">0.0</span></label>
+          <input type="range" id="valRange" min="-10" max="10" step="0.5" value="0">
+        </div>
+        <div>
+          <label>Быстрые пресеты</label>
+          <div class="quick-btns">
+            <button class="btn" onclick="setQuickVal(-8.5)" style="border-color:var(--danger)">Дно (-8.5)</button>
+            <button class="btn" onclick="setQuickVal(-4.0)">Спад (-4.0)</button>
+            <button class="btn" onclick="setQuickVal(0)">Норма (0.0)</button>
+            <button class="btn" onclick="setQuickVal(5.0)">Подъем (+5.0)</button>
+            <button class="btn" onclick="setQuickVal(8.5)" style="border-color:var(--success)">Пик (+8.5)</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; padding-top:0.5rem; border-top:1px solid var(--border);">
+        <div class="status-msg" id="syncStatus">Готово к синхронизации с GitHub Pages</div>
+        <button class="btn btn-primary" id="saveBtn">СОХРАНИТЬ ДЛЯ ВСЕХ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно авторизации -->
+  <div class="modal" id="authModal">
+    <div class="modal-box">
+      <h3 style="font-size:1rem;">ДОСТУП К УПРАВЛЕНИЮ</h3>
+      <p style="font-size:0.75rem; color:var(--muted); line-height:1.4;">
+        Данные сохраняются только в браузере вашего устройства и используются для прямой записи файла <code>pulse/data.json</code> в ваш репозиторий.
+      </p>
+      <div>
+        <label>Репозиторий (Ник/Название)</label>
+        <input type="text" id="repoInput" placeholder="например: derkhsoul/derkhsoul.github.io">
+      </div>
+      <div>
+        <label>GitHub Personal Access Token (Fine-grained)</label>
+        <input type="password" id="tokenInput" placeholder="github_pat_...">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.5rem;">
+        <button class="btn" onclick="closeModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="login()">Подключить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DAYS = 31;
+    // Дефолтный график, если data.json еще не создан (3 числа спад до -8.5)
+    let points = Array.from({ length: DAYS }, (_, i) => (i + 1 === 3 ? -8.5 : 0));
+    let selectedDay = new Date().getDate();
+    if (selectedDay > DAYS) selectedDay = 1;
+    let isAdmin = false;
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+    const daySelect = document.getElementById('daySelect');
+    const valRange = document.getElementById('valRange');
+    const valLabel = document.getElementById('valLabel');
+
+    // Заполняем список дней
+    for (let i = 1; i <= DAYS; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `День ${i}`;
+      daySelect.appendChild(opt);
+    }
+
+    // Загрузка графика для всех посетителей
+    async function loadData() {
+      try {
+        const res = await fetch('./data.json?t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.points) && data.points.length === DAYS) {
+            points = data.points;
+          }
+        }
+      } catch (e) {
+        console.log('Используются базовые значения (data.json еще не создан)');
+      }
+      syncUI();
+      drawChart();
+    }
+
+    function syncUI() {
+      daySelect.value = selectedDay;
+      const val = points[selectedDay - 1];
+      valRange.value = val;
+      valLabel.textContent = (val > 0 ? '+' : '') + val.toFixed(1);
+
+      document.getElementById('curDayStat').textContent = `День ${selectedDay}`;
+      document.getElementById('curValStat').textContent = (val > 0 ? '+' : '') + val.toFixed(1);
+      const avg = points.reduce((a, b) => a + b, 0) / DAYS;
+      document.getElementById('avgValStat').textContent = (avg > 0 ? '+' : '') + avg.toFixed(2);
+    }
+
+    function drawChart() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const padL = 42, padR = 20, padT = 20, padB = 32;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Горизонтальная сетка (-10 .. +10)
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'right';
+      for (let v = -10; v <= 10; v += 5) {
+        const y = padT + ((10 - v) / 20) * plotH;
+        ctx.strokeStyle = v === 0 ? '#2e2e3d' : '#16161f';
+        ctx.lineWidth = v === 0 ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(w - padR, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#71717a';
+        ctx.fillText((v > 0 ? '+' : '') + v, padL - 8, y + 4);
+      }
+
+      const getX = (i) => padL + (i / (DAYS - 1)) * plotW;
+      const getY = (val) => padT + ((10 - val) / 20) * plotH;
+
+      // Градиент под линией
+      const grad = ctx.createLinearGradient(0, padT, 0, h - padB);
+      grad.addColorStop(0, 'rgba(99, 102, 241, 0.28)');
+      grad.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+      ctx.beginPath();
+      points.forEach((v, i) => {
+        const x = getX(i), y = getY(v);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(getX(DAYS - 1), h - padB);
+      ctx.lineTo(getX(0), h - padB);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Основная линия
+      ctx.beginPath();
+      points.forEach((v, i) => {
+        const x = getX(i), y = getY(v);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Точки и подписи дней
+      ctx.textAlign = 'center';
+      points.forEach((v, i) => {
+        const x = getX(i), y = getY(v);
+        const dayNum = i + 1;
+
+        if (dayNum === 1 || dayNum % 5 === 0 || dayNum === DAYS) {
+          ctx.fillStyle = '#71717a';
+          ctx.fillText(dayNum, x, h - 10);
+        }
+
+        ctx.beginPath();
+        ctx.arc(x, y, dayNum === selectedDay ? 5.5 : 3.2, 0, Math.PI * 2);
+        if (v <= -5) ctx.fillStyle = '#ef4444';
+        else if (v >= 5) ctx.fillStyle = '#10b981';
+        else ctx.fillStyle = '#6366f1';
+        ctx.fill();
+
+        if (dayNum === selectedDay) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      });
+    }
+
+    // Интерактивный клик по графику
+    canvas.addEventListener('pointerdown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const padL = 42, padR = 20, padT = 20, padB = 32;
+      const plotW = rect.width - padL - padR;
+      const plotH = rect.height - padT - padB;
+
+      const relX = Math.max(0, Math.min(plotW, e.clientX - rect.left - padL));
+      const dayIdx = Math.round((relX / plotW) * (DAYS - 1));
+      selectedDay = dayIdx + 1;
+
+      if (isAdmin) {
+        const relY = Math.max(0, Math.min(plotH, e.clientY - rect.top - padT));
+        const rawVal = 10 - (relY / plotH) * 20;
+        points[dayIdx] = Math.round(rawVal * 2) / 2;
+      }
+      syncUI();
+      drawChart();
+    });
+
+    daySelect.addEventListener('change', (e) => {
+      selectedDay = parseInt(e.target.value, 10);
+      syncUI();
+      drawChart();
+    });
+
+    valRange.addEventListener('input', (e) => {
+      points[selectedDay - 1] = parseFloat(e.target.value);
+      syncUI();
+      drawChart();
+    });
+
+    function setQuickVal(v) {
+      points[selectedDay - 1] = v;
+      syncUI();
+      drawChart();
+    }
+
+    // Авторизация и сохранение через GitHub API
+    function checkStoredAuth() {
+      const repo = localStorage.getItem('gh_repo');
+      const token = localStorage.getItem('gh_token');
+      if (repo && token) {
+        isAdmin = true;
+        document.getElementById('adminPanel').classList.add('active');
+        document.getElementById('authBtn').textContent = '[ ADMIN // ACTIVE ]';
+      }
+    }
+
+    document.getElementById('authBtn').addEventListener('click', () => {
+      document.getElementById('repoInput').value = localStorage.getItem('gh_repo') || '';
+      document.getElementById('tokenInput').value = localStorage.getItem('gh_token') || '';
+      document.getElementById('authModal').classList.add('active');
+    });
+
+    function closeModal() {
+      document.getElementById('authModal').classList.remove('active');
+    }
+
+    function login() {
+      const repo = document.getElementById('repoInput').value.trim();
+      const token = document.getElementById('tokenInput').value.trim();
+      if (!repo || !token) return alert('Укажи репозиторий и токен');
+      localStorage.setItem('gh_repo', repo);
+      localStorage.setItem('gh_token', token);
+      closeModal();
+      checkStoredAuth();
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('gh_token');
+      isAdmin = false;
+      document.getElementById('adminPanel').classList.remove('active');
+      document.getElementById('authBtn').textContent = '[ AUTH // OVERRIDE ]';
+    });
+
+    // Запись data.json напрямую в GitHub репозиторий
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const repo = localStorage.getItem('gh_repo');
+      const token = localStorage.getItem('gh_token');
+      const statusEl = document.getElementById('syncStatus');
+      const path = 'pulse/data.json';
+
+      statusEl.textContent = 'Синхронизация с GitHub...';
+      try {
+        let sha = undefined;
+        const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (getRes.ok) {
+          const fileData = await getRes.json();
+          sha = fileData.sha;
+        }
+
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify({
+          updatedAt: new Date().toISOString(),
+          points
+        }, null, 2))));
+
+        const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: 'update telemetry f(t)',
+            content,
+            sha
+          })
+        });
+
+        if (putRes.ok) {
+          statusEl.style.color = '#10b981';
+          statusEl.textContent = 'Сохранено! Обновится у всех через ~30-60 сек.';
+        } else {
+          const err = await putRes.json();
+          statusEl.style.color = '#ef4444';
+          statusEl.textContent = 'Ошибка GitHub API: ' + (err.message || putRes.status);
+        }
+      } catch (e) {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = 'Ошибка сети при сохранении';
+      }
+    });
+
+    window.addEventListener('resize', drawChart);
+    checkStoredAuth();
+    loadData();
+  </script>
+</body>
+</html>
