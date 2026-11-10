@@ -168,13 +168,21 @@
     <div class="header-info">
       <div>
         <h1>f(t) // ФАЗОВАЯ ДИНАМИКА</h1>
-        <div class="subtitle">Распределение функции по дням расчетного цикла (t = 1..31)</div>
+        <div class="subtitle">Распределение функции по дням месяца</div>
       </div>
       <div class="stats-row">
         <div class="stat-box"><span>ТЕКУЩИЙ t:</span><strong id="curDayStat">-</strong></div>
         <div class="stat-box"><span>f(t):</span><strong id="curValStat">-</strong></div>
         <div class="stat-box"><span>СРЕДНЕЕ:</span><strong id="avgValStat">-</strong></div>
       </div>
+    </div>
+
+    <div class="month-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:0.8rem 1rem;">
+      <div style="min-width:180px; flex:1;">
+        <label for="monthSelect">МЕСЯЦ / ПРОСМОТР ИСТОРИИ</label>
+        <select id="monthSelect"></select>
+      </div>
+      <div id="monthMode" class="status-msg">ТЕКУЩИЙ МЕСЯЦ // РЕДАКТИРОВАНИЕ</div>
     </div>
 
     <div class="chart-card">
@@ -239,11 +247,12 @@
   </div>
 
   <script>
-    const DAYS = 31;
-    // Дефолтный график, если data.json еще не создан (3 числа спад до -8.5)
-    let points = Array.from({ length: DAYS }, (_, i) => (i + 1 === 3 ? -8.5 : 0));
-    let selectedDay = new Date().getDate();
-    if (selectedDay > DAYS) selectedDay = 1;
+    const DEFAULT_POINTS = -8.5;
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let selectedMonth = currentMonthKey;
+    let selectedDay = now.getDate();
+    let months = {};
     let isAdmin = false;
 
     const canvas = document.getElementById('chartCanvas');
@@ -251,171 +260,211 @@
     const daySelect = document.getElementById('daySelect');
     const valRange = document.getElementById('valRange');
     const valLabel = document.getElementById('valLabel');
+    const monthSelect = document.getElementById('monthSelect');
+    const monthMode = document.getElementById('monthMode');
 
-    // Заполняем список дней
-    for (let i = 1; i <= DAYS; i++) {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = `День ${i}`;
-      daySelect.appendChild(opt);
+    function daysInMonth(key) {
+      const [year, month] = key.split('-').map(Number);
+      return new Date(year, month, 0).getDate();
     }
 
-    // Загрузка графика для всех посетителей
+    function monthLabel(key) {
+      const [year, month] = key.split('-').map(Number);
+      return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' })
+        .format(new Date(year, month - 1, 1));
+    }
+
+    function makeEmptyMonth(key) {
+      return Array.from({ length: daysInMonth(key) }, () => 0);
+    }
+
+    function ensureMonth(key) {
+      if (!Array.isArray(months[key])) months[key] = makeEmptyMonth(key);
+      const count = daysInMonth(key);
+      months[key] = months[key].slice(0, count);
+      while (months[key].length < count) months[key].push(0);
+    }
+
+    function getPoints() {
+      ensureMonth(selectedMonth);
+      return months[selectedMonth];
+    }
+
+    function isCurrentMonth() {
+      return selectedMonth === currentMonthKey;
+    }
+
+    function updateMonthSelector() {
+      const keys = new Set(Object.keys(months));
+      keys.add(currentMonthKey);
+      // Показываем также все месяцы между самым ранним сохранённым и текущим.
+      const sorted = [...keys].sort();
+      if (sorted.length) {
+        const [firstYear, firstMonth] = sorted[0].split('-').map(Number);
+        let cursor = new Date(firstYear, firstMonth - 1, 1);
+        const last = new Date(now.getFullYear(), now.getMonth(), 1);
+        while (cursor <= last) {
+          keys.add(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+      const options = [...keys].filter(k => k <= currentMonthKey).sort();
+      monthSelect.innerHTML = '';
+      options.reverse().forEach(key => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = monthLabel(key) + (key === currentMonthKey ? ' // ТЕКУЩИЙ' : ' // ПРОСМОТР');
+        monthSelect.appendChild(opt);
+      });
+      monthSelect.value = selectedMonth;
+      monthMode.textContent = isCurrentMonth() ? 'РЕЖИМ: РЕДАКТИРОВАНИЕ' : 'РЕЖИМ: ТОЛЬКО ПРОСМОТР';
+    }
+
+    function updateDayOptions() {
+      const count = daysInMonth(selectedMonth);
+      if (selectedDay > count) selectedDay = count;
+      daySelect.innerHTML = '';
+      for (let i = 1; i <= count; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `День ${i}`;
+        daySelect.appendChild(opt);
+      }
+      daySelect.value = selectedDay;
+    }
+
     async function loadData() {
       try {
         const res = await fetch('./data.json?t=' + Date.now());
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data.points) && data.points.length === DAYS) {
-            points = data.points;
+          if (data.months && typeof data.months === 'object' && !Array.isArray(data.months)) {
+            months = data.months;
+          } else if (Array.isArray(data.points)) {
+            // Совместимость со старым форматом: переносим прежний график в текущий месяц.
+            months[currentMonthKey] = data.points.slice(0, daysInMonth(currentMonthKey));
           }
         }
       } catch (e) {
-        console.log('Используются базовые значения (data.json еще не создан)');
+        console.log('Используются пустые значения (data.json пока недоступен)');
       }
+      ensureMonth(currentMonthKey);
+      ensureMonth(selectedMonth);
+      updateMonthSelector();
+      updateDayOptions();
       syncUI();
       drawChart();
     }
 
     function syncUI() {
-      daySelect.value = selectedDay;
-      const val = points[selectedDay - 1];
+      const points = getPoints();
+      const val = points[selectedDay - 1] ?? 0;
       valRange.value = val;
       valLabel.textContent = (val > 0 ? '+' : '') + val.toFixed(1);
-
       document.getElementById('curDayStat').textContent = `День ${selectedDay}`;
       document.getElementById('curValStat').textContent = (val > 0 ? '+' : '') + val.toFixed(1);
-      const avg = points.reduce((a, b) => a + b, 0) / DAYS;
+      const avg = points.reduce((a, b) => a + b, 0) / points.length;
       document.getElementById('avgValStat').textContent = (avg > 0 ? '+' : '') + avg.toFixed(2);
+      const editable = isCurrentMonth() && isAdmin;
+      valRange.disabled = !editable;
+      document.querySelectorAll('.quick-btns button').forEach(btn => btn.disabled = !editable);
+      document.getElementById('saveBtn').disabled = !isCurrentMonth() || !isAdmin;
+      monthMode.textContent = isCurrentMonth() ? 'ТЕКУЩИЙ МЕСЯЦ // РЕДАКТИРОВАНИЕ' : 'АРХИВ // ТОЛЬКО ПРОСМОТР';
     }
 
     function drawChart() {
+      const points = getPoints();
+      const DAYS = points.length;
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const w = rect.width;
-      const h = rect.height;
+      const w = rect.width, h = rect.height;
       const padL = 42, padR = 20, padT = 20, padB = 32;
-      const plotW = w - padL - padR;
-      const plotH = h - padT - padB;
-
+      const plotW = w - padL - padR, plotH = h - padT - padB;
       ctx.clearRect(0, 0, w, h);
 
-      // Горизонтальная сетка (-10 .. +10)
       ctx.font = '11px monospace';
       ctx.textAlign = 'right';
       for (let v = -10; v <= 10; v += 5) {
         const y = padT + ((10 - v) / 20) * plotH;
         ctx.strokeStyle = v === 0 ? '#2e2e3d' : '#16161f';
         ctx.lineWidth = v === 0 ? 1.5 : 1;
-        ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(w - padR, y);
-        ctx.stroke();
-
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
         ctx.fillStyle = '#71717a';
         ctx.fillText((v > 0 ? '+' : '') + v, padL - 8, y + 4);
       }
 
-      const getX = (i) => padL + (i / (DAYS - 1)) * plotW;
+      const getX = (i) => padL + (DAYS <= 1 ? 0 : (i / (DAYS - 1)) * plotW);
       const getY = (val) => padT + ((10 - val) / 20) * plotH;
-
-      // Градиент под линией
       const grad = ctx.createLinearGradient(0, padT, 0, h - padB);
       grad.addColorStop(0, 'rgba(99, 102, 241, 0.28)');
       grad.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
 
       ctx.beginPath();
-      points.forEach((v, i) => {
-        const x = getX(i), y = getY(v);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.lineTo(getX(DAYS - 1), h - padB);
-      ctx.lineTo(getX(0), h - padB);
-      ctx.closePath();
-      ctx.fillStyle = grad;
-      ctx.fill();
+      points.forEach((v, i) => { const x = getX(i), y = getY(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.lineTo(getX(DAYS - 1), h - padB); ctx.lineTo(getX(0), h - padB); ctx.closePath();
+      ctx.fillStyle = grad; ctx.fill();
 
-      // Основная линия
       ctx.beginPath();
-      points.forEach((v, i) => {
-        const x = getX(i), y = getY(v);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = '#6366f1';
-      ctx.lineWidth = 2.2;
-      ctx.stroke();
+      points.forEach((v, i) => { const x = getX(i), y = getY(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.2; ctx.stroke();
 
-      // Точки и подписи дней
       ctx.textAlign = 'center';
       points.forEach((v, i) => {
-        const x = getX(i), y = getY(v);
-        const dayNum = i + 1;
-
+        const x = getX(i), y = getY(v), dayNum = i + 1;
         if (dayNum === 1 || dayNum % 5 === 0 || dayNum === DAYS) {
-          ctx.fillStyle = '#71717a';
-          ctx.fillText(dayNum, x, h - 10);
+          ctx.fillStyle = '#71717a'; ctx.fillText(dayNum, x, h - 10);
         }
-
-        ctx.beginPath();
-        ctx.arc(x, y, dayNum === selectedDay ? 5.5 : 3.2, 0, Math.PI * 2);
-        if (v <= -5) ctx.fillStyle = '#ef4444';
-        else if (v >= 5) ctx.fillStyle = '#10b981';
-        else ctx.fillStyle = '#6366f1';
+        ctx.beginPath(); ctx.arc(x, y, dayNum === selectedDay ? 5.5 : 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = v <= -5 ? '#ef4444' : v >= 5 ? '#10b981' : '#6366f1';
         ctx.fill();
-
-        if (dayNum === selectedDay) {
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
+        if (dayNum === selectedDay) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke(); }
       });
     }
 
-    // Интерактивный клик по графику
     canvas.addEventListener('pointerdown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const padL = 42, padR = 20, padT = 20, padB = 32;
-      const plotW = rect.width - padL - padR;
-      const plotH = rect.height - padT - padB;
-
+      const plotW = rect.width - padL - padR, plotH = rect.height - padT - padB;
+      const points = getPoints(), DAYS = points.length;
       const relX = Math.max(0, Math.min(plotW, e.clientX - rect.left - padL));
       const dayIdx = Math.round((relX / plotW) * (DAYS - 1));
       selectedDay = dayIdx + 1;
-
-      if (isAdmin) {
+      if (isAdmin && isCurrentMonth()) {
         const relY = Math.max(0, Math.min(plotH, e.clientY - rect.top - padT));
-        const rawVal = 10 - (relY / plotH) * 20;
-        points[dayIdx] = Math.round(rawVal * 2) / 2;
+        points[dayIdx] = Math.max(-10, Math.min(10, Math.round((10 - (relY / plotH) * 20) * 2) / 2));
       }
-      syncUI();
-      drawChart();
+      daySelect.value = selectedDay;
+      syncUI(); drawChart();
+    });
+
+    monthSelect.addEventListener('change', (e) => {
+      selectedMonth = e.target.value;
+      selectedDay = isCurrentMonth() ? now.getDate() : 1;
+      ensureMonth(selectedMonth);
+      updateDayOptions(); updateMonthSelector(); syncUI(); drawChart();
     });
 
     daySelect.addEventListener('change', (e) => {
       selectedDay = parseInt(e.target.value, 10);
-      syncUI();
-      drawChart();
+      syncUI(); drawChart();
     });
 
     valRange.addEventListener('input', (e) => {
-      points[selectedDay - 1] = parseFloat(e.target.value);
-      syncUI();
-      drawChart();
+      if (!isAdmin || !isCurrentMonth()) return;
+      getPoints()[selectedDay - 1] = parseFloat(e.target.value);
+      syncUI(); drawChart();
     });
 
     function setQuickVal(v) {
-      points[selectedDay - 1] = v;
-      syncUI();
-      drawChart();
+      if (!isAdmin || !isCurrentMonth()) return;
+      getPoints()[selectedDay - 1] = v;
+      syncUI(); drawChart();
     }
 
-    // Авторизация и сохранение через GitHub API
     function checkStoredAuth() {
       const repo = localStorage.getItem('gh_repo');
       const token = localStorage.getItem('gh_token');
@@ -424,6 +473,7 @@
         document.getElementById('adminPanel').classList.add('active');
         document.getElementById('authBtn').textContent = '[ ADMIN // ACTIVE ]';
       }
+      syncUI();
     }
 
     document.getElementById('authBtn').addEventListener('click', () => {
@@ -432,9 +482,7 @@
       document.getElementById('authModal').classList.add('active');
     });
 
-    function closeModal() {
-      document.getElementById('authModal').classList.remove('active');
-    }
+    function closeModal() { document.getElementById('authModal').classList.remove('active'); }
 
     function login() {
       const repo = document.getElementById('repoInput').value.trim();
@@ -442,56 +490,44 @@
       if (!repo || !token) return alert('Укажи репозиторий и токен');
       localStorage.setItem('gh_repo', repo);
       localStorage.setItem('gh_token', token);
-      closeModal();
-      checkStoredAuth();
+      closeModal(); checkStoredAuth();
     }
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.removeItem('gh_token');
+      localStorage.removeItem('gh_repo');
       isAdmin = false;
       document.getElementById('adminPanel').classList.remove('active');
       document.getElementById('authBtn').textContent = '[ AUTH // OVERRIDE ]';
+      syncUI();
     });
 
-    // Запись data.json напрямую в GitHub репозиторий
     document.getElementById('saveBtn').addEventListener('click', async () => {
+      if (!isAdmin || !isCurrentMonth()) return;
       const repo = localStorage.getItem('gh_repo');
       const token = localStorage.getItem('gh_token');
       const statusEl = document.getElementById('syncStatus');
       const path = 'pulse/data.json';
-
       statusEl.textContent = 'Синхронизация с GitHub...';
       try {
-        let sha = undefined;
+        let sha;
         const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (getRes.ok) {
-          const fileData = await getRes.json();
-          sha = fileData.sha;
-        }
+        if (getRes.ok) { const fileData = await getRes.json(); sha = fileData.sha; }
 
         const content = btoa(unescape(encodeURIComponent(JSON.stringify({
           updatedAt: new Date().toISOString(),
-          points
+          months
         }, null, 2))));
-
         const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
           method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: 'update telemetry f(t)',
-            content,
-            sha
-          })
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'update telemetry month ' + currentMonthKey, content, sha })
         });
-
         if (putRes.ok) {
           statusEl.style.color = '#10b981';
-          statusEl.textContent = 'Сохранено! Обновится у всех через ~30-60 сек.';
+          statusEl.textContent = 'Сохранено! История месяцев обновится у всех через ~30-60 сек.';
         } else {
           const err = await putRes.json();
           statusEl.style.color = '#ef4444';
