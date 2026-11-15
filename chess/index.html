@@ -1,0 +1,2459 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Играть вживую — Шахматы // DERKHSOUL</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <style>
+    :root {
+      --bg-main: #302e2b;
+      --bg-header: #262421;
+      --bg-nav: #21201d;
+      --board-light: #ebecd0;
+      --board-dark: #779556;
+      --highlight-light: #f5f682;
+      --highlight-dark: #b9ca43;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2be;
+      --text-muted: #9e9c98;
+      --clock-inactive-bg: #1f1e1b;
+      --clock-inactive-text: #d5d4d0;
+      --clock-active-bg: #ffffff;
+      --clock-active-text: #262421;
+      --accent-green: #81b64c;
+      --accent-gold: #d4af37;
+      --danger-red: #e53935;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #161512;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text-primary);
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      height: 100%;
+      background-color: var(--bg-main);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    }
+
+    .top-header {
+      height: 54px;
+      background-color: var(--bg-header);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      margin-right: 16px;
+      margin-left: -6px;
+      text-decoration: none;
+    }
+
+    .back-btn:active {
+      opacity: 0.7;
+    }
+
+    .header-phone-icon {
+      width: 24px;
+      height: 34px;
+      margin-right: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 0.1px;
+    }
+
+    .game-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .left-scroll-indicator {
+      position: absolute;
+      left: 7px;
+      top: 52px;
+      width: 2px;
+      height: 62px;
+      background-color: #55534e;
+      border-radius: 1px;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .player-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 12px 16px;
+      position: relative;
+    }
+
+    .player-bar.top-bar {
+      padding-bottom: 24px;
+    }
+
+    .player-bar.bottom-bar {
+      padding-top: 22px;
+    }
+
+    .player-info {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .avatar-box {
+      width: 42px;
+      height: 42px;
+      background-color: #dedede;
+      border-radius: 4px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .player-meta {
+      display: flex;
+      flex-direction: column;
+      padding-top: 1px;
+    }
+
+    .player-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.25;
+    }
+
+    .player-substatus {
+      font-size: 11.5px;
+      color: #f3c663;
+      margin-top: 3px;
+      min-height: 14px;
+      font-weight: 500;
+    }
+
+    .clock-box {
+      min-width: 108px;
+      height: 38px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 12px;
+      font-size: 18px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      background-color: var(--clock-inactive-bg);
+      color: var(--clock-inactive-text);
+      transition: background-color 0.15s ease, color 0.15s ease;
+      position: relative;
+      margin-top: 2px;
+    }
+
+    .clock-box.active {
+      background-color: var(--clock-active-bg);
+      color: var(--clock-active-text);
+      font-weight: 600;
+      justify-content: space-between;
+    }
+
+    .clock-box.frozen-clock {
+      outline: 2px dashed var(--accent-gold);
+    }
+
+    .clock-box.low-time.active {
+      background-color: #e63946;
+      color: #ffffff;
+    }
+
+    .clock-icon {
+      width: 18px;
+      height: 18px;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .clock-box.active .clock-icon {
+      display: block;
+    }
+
+    .clock-box.low-time.active .clock-icon svg {
+      stroke: #ffffff;
+    }
+
+    .move-timer-badge {
+      position: absolute;
+      bottom: -16px;
+      right: 2px;
+      font-size: 10.5px;
+      color: #a9a8a4;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .board-wrapper {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .chessboard {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(8, 12.5%);
+      grid-template-rows: repeat(8, 12.5%);
+      position: relative;
+      touch-action: none;
+    }
+
+    .square {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .square.light {
+      background-color: var(--board-light);
+    }
+
+    .square.dark {
+      background-color: var(--board-dark);
+    }
+
+    .square.light.highlighted {
+      background-color: var(--highlight-light);
+    }
+
+    .square.dark.highlighted {
+      background-color: var(--highlight-dark);
+    }
+
+    .square.bonus-origin {
+      box-shadow: inset 0 0 0 3.5px var(--accent-gold);
+    }
+
+    .square.in-check {
+      background-image: radial-gradient(circle, rgba(235, 64, 52, 0.85) 0%, rgba(235, 64, 52, 0) 72%);
+    }
+
+    .coord-rank {
+      position: absolute;
+      top: 3px;
+      left: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .coord-file {
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .square.light .coord-rank,
+    .square.light .coord-file {
+      color: var(--board-dark);
+    }
+
+    .square.dark .coord-rank,
+    .square.dark .coord-file {
+      color: var(--board-light);
+    }
+
+    .piece {
+      width: 100%;
+      height: 100%;
+      background-size: 98% 98%;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+      z-index: 5;
+      cursor: grab;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .piece.custom-baroness {
+      width: 88%;
+      height: 88%;
+      border-radius: 50%;
+      background-size: cover;
+      background-position: center top;
+      box-shadow: 0 3px 7px rgba(0, 0, 0, 0.55);
+    }
+
+    .piece.custom-baroness.color-w {
+      border: 2.5px solid #ffffff;
+      outline: 2px solid var(--accent-gold);
+    }
+
+    .piece.custom-baroness.color-b {
+      border: 2.5px solid #1f1e1b;
+      outline: 2px solid #c94a4a;
+    }
+
+    .piece.custom-baroness.on-cooldown {
+      filter: grayscale(40%) brightness(0.75);
+    }
+
+    .baroness-crown-tag {
+      position: absolute;
+      bottom: 1px;
+      left: 1px;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      font-size: 10.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      font-weight: 800;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.7);
+      pointer-events: none;
+    }
+
+    .baroness-crown-tag.color-w {
+      background: linear-gradient(135deg, #fffef8, #e4c567);
+      color: #262421;
+      border: 1px solid #8a6d1b;
+    }
+
+    .baroness-crown-tag.color-b {
+      background: linear-gradient(135deg, #3a3632, #181614);
+      color: #f3c663;
+      border: 1px solid #f3c663;
+    }
+
+    /* Красный значок часов с цифрой кулдауна прямо поверх фигуры */
+    .cooldown-badge {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 30px;
+      height: 30px;
+      padding: 0 6px;
+      background: radial-gradient(circle at 30% 30%, #ff3b3b, #b71c1c);
+      border: 2px solid #ffffff;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      z-index: 60;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      animation: badgePulse 1.15s infinite ease-in-out;
+    }
+
+    @keyframes badgePulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.12); }
+    }
+
+    .cooldown-badge svg {
+      width: 13px;
+      height: 13px;
+      stroke: #ffffff;
+      flex-shrink: 0;
+    }
+
+    .cooldown-badge span {
+      font-size: 13.5px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    }
+
+    .dragging-piece {
+      position: fixed;
+      width: 64px;
+      height: 64px;
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      pointer-events: none;
+      z-index: 1000;
+      transform: translate(-50%, -50%) scale(1.18);
+      display: none;
+    }
+
+    .dragging-piece.custom-drag {
+      border-radius: 50%;
+      background-size: cover;
+      border: 2.5px solid var(--accent-gold);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.65);
+    }
+
+    .legal-dot {
+      width: 32%;
+      height: 32%;
+      background-color: rgba(0, 0, 0, 0.18);
+      border-radius: 50%;
+      position: absolute;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    .legal-dot.bonus-step-dot {
+      width: 38%;
+      height: 38%;
+      background-color: rgba(212, 175, 55, 0.88);
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 8px rgba(212, 175, 55, 0.95);
+    }
+
+    .legal-capture {
+      width: 88%;
+      height: 88%;
+      border: 4.5px solid rgba(0, 0, 0, 0.18);
+      border-radius: 50%;
+      position: absolute;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    /* Оверлей превращения пешки */
+    .promotion-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.74);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 50;
+    }
+
+    .promotion-overlay-active {
+      display: flex;
+    }
+
+    .promotion-card {
+      width: 100%;
+      max-width: 350px;
+      background-color: var(--bg-header);
+      border: 1px solid #48453f;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.75);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .promo-freeze-pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background-color: rgba(212, 175, 55, 0.14);
+      border: 1px solid rgba(212, 175, 55, 0.45);
+      color: #f3d478;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .promo-section-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .promotion-box {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .promo-option {
+      aspect-ratio: 1 / 1;
+      background-color: var(--board-light);
+      border-radius: 9px;
+      cursor: pointer;
+      background-size: 86%;
+      background-position: center;
+      background-repeat: no-repeat;
+      border: 2.5px solid transparent;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .promo-option:hover, .promo-option:active {
+      border-color: var(--accent-green);
+      transform: scale(1.04);
+    }
+
+    .special-promo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .special-promo-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: linear-gradient(135deg, #35312c, #282521);
+      border: 1.5px solid var(--accent-gold);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+      position: relative;
+    }
+
+    .special-promo-item:hover, .special-promo-item:active {
+      transform: scale(1.015);
+      background: linear-gradient(135deg, #3f3a33, #2f2b26);
+    }
+
+    .special-promo-thumb {
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      background-size: cover;
+      background-position: center top;
+      border: 2px solid var(--accent-gold);
+      flex-shrink: 0;
+    }
+
+    .special-promo-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .special-promo-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .special-promo-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .new-badge {
+      background-color: var(--danger-red);
+      color: #ffffff;
+      font-size: 9.5px;
+      font-weight: 800;
+      padding: 1.5px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .special-promo-sub {
+      font-size: 11.5px;
+      color: #d6c69b;
+      line-height: 1.25;
+    }
+
+    /* Модальное окно досье новой фигуры */
+    .char-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(12, 11, 10, 0.86);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 80;
+    }
+
+    .char-modal-backdrop.open {
+      display: flex;
+    }
+
+    .char-dossier-card {
+      width: 100%;
+      max-width: 400px;
+      max-height: 92%;
+      background: linear-gradient(180deg, #2d2925 0%, #211f1c 100%);
+      border: 1.5px solid var(--accent-gold);
+      border-radius: 16px;
+      padding: 16px;
+      overflow-y: auto;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dossier-top {
+      display: flex;
+      gap: 13px;
+      align-items: center;
+    }
+
+    .dossier-portrait-wrap {
+      width: 88px;
+      height: 106px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid var(--accent-gold);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      flex-shrink: 0;
+      background-color: #5a4f43;
+      position: relative;
+    }
+
+    .dossier-portrait {
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center top;
+    }
+
+    .dossier-headline {
+      flex: 1;
+    }
+
+    .dossier-role-tag {
+      display: inline-block;
+      background-color: rgba(212, 175, 55, 0.18);
+      border: 1px solid rgba(212, 175, 55, 0.5);
+      color: #f5d77f;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      margin-bottom: 5px;
+    }
+
+    .dossier-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+
+    .dossier-clock-status {
+      font-size: 11px;
+      color: #96c95d;
+      font-weight: 600;
+    }
+
+    .dossier-block {
+      background-color: rgba(0, 0, 0, 0.26);
+      border-radius: 10px;
+      padding: 10px 12px;
+      border-left: 3.5px solid var(--accent-gold);
+    }
+
+    .dossier-block.ability-block {
+      border-left-color: var(--accent-green);
+    }
+
+    .dossier-block.debuff-block {
+      border-left-color: var(--danger-red);
+      background-color: rgba(229, 57, 53, 0.08);
+    }
+
+    .dossier-block-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+      color: #f3d478;
+    }
+
+    .dossier-block.ability-block .dossier-block-title {
+      color: #9be15d;
+    }
+
+    .dossier-block.debuff-block .dossier-block-title {
+      color: #ff7979;
+    }
+
+    .dossier-block-text {
+      font-size: 12.5px;
+      line-height: 1.42;
+      color: #e9e8e4;
+    }
+
+    .dossier-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .confirm-char-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #81b64c, #649632);
+      color: #ffffff;
+      border: none;
+      border-radius: 9px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #44691f;
+    }
+
+    .confirm-char-btn:active {
+      transform: translateY(1px);
+    }
+
+    .back-to-promo-btn {
+      width: 100%;
+      background-color: #383530;
+      color: var(--text-secondary);
+      border: 1px solid #4e4a44;
+      border-radius: 9px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .bottom-nav {
+      height: 64px;
+      background-color: var(--bg-nav);
+      border-top: 1px solid #191816;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 100%;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .nav-btn:active {
+      color: #ffffff;
+    }
+
+    .nav-btn.disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .nav-btn.active-toggle {
+      color: var(--accent-green);
+    }
+
+    .nav-icon {
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-label {
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.1px;
+    }
+
+    .pause-banner {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(25, 24, 22, 0.82);
+      backdrop-filter: blur(3px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      gap: 14px;
+    }
+
+    .pause-banner.visible {
+      display: flex;
+    }
+
+    .pause-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .resume-btn {
+      background-color: var(--accent-green);
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 11px 26px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #537a2d;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-height: 90%;
+      background-color: var(--bg-header);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      padding: 20px 18px 28px;
+      overflow-y: auto;
+      border-top: 1px solid #3c3a36;
+      animation: slideUp 0.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #383632;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px 8px;
+    }
+
+    .setting-group {
+      margin-bottom: 16px;
+    }
+
+    .setting-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .segmented-control {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+      gap: 6px;
+    }
+
+    .seg-btn {
+      background-color: #363430;
+      border: 1.5px solid #45433e;
+      color: var(--text-secondary);
+      padding: 9px 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.12s ease;
+    }
+
+    .seg-btn.selected {
+      background-color: var(--accent-green);
+      border-color: #96c95d;
+      color: #ffffff;
+    }
+
+    .primary-action-btn {
+      width: 100%;
+      background-color: var(--accent-green);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 13px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      box-shadow: 0 3px 0 #537a2d;
+    }
+
+    .secondary-test-btn {
+      width: 100%;
+      background-color: #3b3528;
+      color: #f3d478;
+      border: 1.5px solid var(--accent-gold);
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .gameover-banner {
+      background-color: #383531;
+      border-left: 4px solid var(--accent-green);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .gameover-banner.active {
+      display: block;
+    }
+
+    .gameover-banner h4 {
+      font-size: 15px;
+      color: #ffffff;
+      margin-bottom: 3px;
+    }
+
+    .gameover-banner p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <header class="top-header">
+    <a href="/" class="back-btn" title="Вернуться на главную derkhsoul.ru">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+    </a>
+
+    <div class="header-phone-icon">
+      <svg width="22" height="32" viewBox="0 0 22 32" fill="none">
+        <rect x="1" y="1" width="20" height="30" rx="3.5" fill="#3c3a36" stroke="#7a7874" stroke-width="1.5"/>
+        <line x1="8" y1="3.5" x2="14" y2="3.5" stroke="#22211f" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="11" cy="28.2" r="1.3" fill="#22211f"/>
+        <g transform="translate(3, 6.5)">
+          <rect x="0" y="0" width="5.33" height="5.33" fill="#ebecd0"/>
+          <rect x="5.33" y="0" width="5.33" height="5.33" fill="#779556"/>
+          <rect x="10.66" y="0" width="5.33" height="5.33" fill="#ebecd0"/>
+          <rect x="0" y="5.33" width="5.33" height="5.33" fill="#779556"/>
+          <rect x="5.33" y="5.33" width="5.33" height="5.33" fill="#ebecd0"/>
+          <rect x="10.66" y="5.33" width="5.33" height="5.33" fill="#779556"/>
+          <rect x="0" y="10.66" width="5.33" height="5.33" fill="#ebecd0"/>
+          <rect x="5.33" y="10.66" width="5.33" height="5.33" fill="#779556"/>
+          <rect x="10.66" y="10.66" width="5.33" height="5.33" fill="#ebecd0"/>
+        </g>
+      </svg>
+    </div>
+
+    <h1 class="header-title">Играть вживую</h1>
+  </header>
+
+  <main class="game-area">
+    <div class="left-scroll-indicator"></div>
+
+    <div class="player-bar top-bar">
+      <div class="player-info">
+        <div class="avatar-box">
+          <svg width="32" height="36" viewBox="0 0 32 36" fill="none">
+            <circle cx="16" cy="10" r="6" fill="#9e9d99"/>
+            <path d="M10.5 17.5C10.5 15.5 13 14.5 16 14.5C19 14.5 21.5 15.5 21.5 17.5C21.5 18.8 19.5 19.6 18.5 20.5C19.5 23.5 21.5 26.5 23.5 29H8.5C10.5 26.5 12.5 23.5 13.5 20.5C12.5 19.6 10.5 18.8 10.5 17.5Z" fill="#9e9d99"/>
+            <rect x="6" y="29" width="20" height="4.5" rx="2" fill="#8c8b87"/>
+            <path d="M16 4A6 6 0 0 1 22 10A6 6 0 0 1 16 16" fill="#888783" opacity="0.45"/>
+          </svg>
+        </div>
+        <div class="player-meta">
+          <span class="player-name" id="topPlayerName">Соперник</span>
+          <span class="player-substatus" id="topPlayerStatus"></span>
+        </div>
+      </div>
+
+      <div class="clock-box" id="topClockBox">
+        <span class="clock-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#262421" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+        </span>
+        <span id="topClockText">5:00</span>
+        <span class="move-timer-badge" id="topMoveBadge"></span>
+      </div>
+    </div>
+
+    <div class="board-wrapper">
+      <div class="chessboard" id="chessboard"></div>
+
+      <!-- Оверлей выбора фигуры при превращении пешки -->
+      <div class="promotion-overlay" id="promotionOverlay">
+        <div class="promotion-card">
+          <div class="promo-freeze-pill">
+            <span>⏸ Время остановлено на время выбора фигуры</span>
+          </div>
+
+          <div>
+            <div class="promo-section-label">Классические фигуры</div>
+            <div class="promotion-box" id="promotionBox"></div>
+          </div>
+
+          <div>
+            <div class="promo-section-label">Особые фигуры (Новые)</div>
+            <div class="special-promo-list" id="specialPromotionList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модальное меню характеристик и описания новой фигуры -->
+      <div class="char-modal-backdrop" id="charInfoModal">
+        <div class="char-dossier-card">
+          <div class="dossier-top">
+            <div class="dossier-portrait-wrap">
+              <div class="dossier-portrait" id="dossierPortraitImg"></div>
+            </div>
+            <div class="dossier-headline">
+              <span class="dossier-role-tag">Заменяет ферзя • Особая фигура</span>
+              <div class="dossier-name" id="dossierCharName">Бароннесса Де Синяк</div>
+              <div class="dossier-clock-status">⏸ Таймер партии на паузе</div>
+            </div>
+          </div>
+
+          <div class="dossier-block">
+            <div class="dossier-block-title">Описание</div>
+            <div class="dossier-block-text" id="dossierDescText">
+              Легенда шахматного фронта и героиня битвы за Эрмесовку. Заменяет ферзя: двигается с грацией подиумной модели, атакует со скоростью станкового пулемёта и доводит короля соперника до белого каления.
+            </div>
+          </div>
+
+          <div class="dossier-block ability-block">
+            <div class="dossier-block-title">Её способности («Забирает сумочку»)</div>
+            <div class="dossier-block-text" id="dossierAbilityText">
+              Ходит так же как ферзь. Но если она срубает вражескую фигуру (особенно ладью или слона — «забирает сумочку»), она получает право сделать ещё один шаг на 1 клетку в любую сторону, чтобы красиво уйти с линии огня.
+            </div>
+          </div>
+
+          <div class="dossier-block debuff-block">
+            <div class="dossier-block-title">Дебафф для обладателя фигуры</div>
+            <div class="dossier-block-text" id="dossierDebuffText">
+              Из-за высокого содержания долей жира в своем организме, с вероятностью 50% после выполненного хода она уходит в кулдаун на 3 хода. (Поверх фигуры показывает красный значок часов с цифрой внутри, сколько ещё осталось ходов, потом пропадает).
+            </div>
+          </div>
+
+          <div class="dossier-actions">
+            <button class="confirm-char-btn" id="confirmSpecialCharBtn">Выбрать: Бароннесса Де Синяк</button>
+            <button class="back-to-promo-btn" id="backToPromoListBtn">← Назад к выбору фигур</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pause-banner" id="pauseBanner">
+        <div class="pause-title">Игра на паузе</div>
+        <button class="resume-btn" id="resumeGameBtn">Продолжить игру</button>
+      </div>
+    </div>
+
+    <div class="player-bar bottom-bar">
+      <div class="player-info">
+        <div class="avatar-box">
+          <svg width="32" height="36" viewBox="0 0 32 36" fill="none">
+            <circle cx="16" cy="10" r="6" fill="#9e9d99"/>
+            <path d="M10.5 17.5C10.5 15.5 13 14.5 16 14.5C19 14.5 21.5 15.5 21.5 17.5C21.5 18.8 19.5 19.6 18.5 20.5C19.5 23.5 21.5 26.5 23.5 29H8.5C10.5 26.5 12.5 23.5 13.5 20.5C12.5 19.6 10.5 18.8 10.5 17.5Z" fill="#9e9d99"/>
+            <rect x="6" y="29" width="20" height="4.5" rx="2" fill="#8c8b87"/>
+            <path d="M16 4A6 6 0 0 1 22 10A6 6 0 0 1 16 16" fill="#888783" opacity="0.45"/>
+          </svg>
+        </div>
+        <div class="player-meta">
+          <span class="player-name" id="bottomPlayerName">derkhsoul</span>
+          <span class="player-substatus" id="bottomPlayerStatus"></span>
+        </div>
+      </div>
+
+      <div class="clock-box active" id="bottomClockBox">
+        <span class="clock-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#262421" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5"></circle>
+            <polyline points="12 7 12 12 15.5 14"></polyline>
+          </svg>
+        </span>
+        <span id="bottomClockText">4:58</span>
+        <span class="move-timer-badge" id="bottomMoveBadge"></span>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn" id="btnSettings">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none"/>
+          <circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+          <circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none"/>
+          <line x1="9.5" y1="6" x2="20" y2="6"/>
+          <line x1="9.5" y1="12" x2="20" y2="12"/>
+          <line x1="9.5" y1="18" x2="20" y2="18"/>
+        </svg>
+      </span>
+      <span class="nav-label">Настройки</span>
+    </button>
+
+    <button class="nav-btn" id="btnPause">
+      <span class="nav-icon" id="pauseIconContainer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="4" width="4.2" height="16" rx="1.2"/>
+          <rect x="13.8" y="4" width="4.2" height="16" rx="1.2"/>
+        </svg>
+      </span>
+      <span class="nav-label" id="pauseLabelText">Пауза</span>
+    </button>
+
+    <button class="nav-btn" id="btnBack">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </span>
+      <span class="nav-label">Назад</span>
+    </button>
+
+    <button class="nav-btn" id="btnForward">
+      <span class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </span>
+      <span class="nav-label">Вперед</span>
+    </button>
+  </nav>
+
+  <!-- МОДАЛЬНОЕ ОКНО "НАСТРОЙКИ" -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title">Настройки игры</span>
+        <button class="modal-close" id="closeSettingsBtn">&times;</button>
+      </div>
+
+      <div class="gameover-banner" id="gameoverBanner">
+        <h4 id="gameoverTitle">Партия завершена</h4>
+        <p id="gameoverDesc"></p>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Режим игры</label>
+        <div class="segmented-control" id="modeControl">
+          <button class="seg-btn selected" data-mode="bot">Против бота</button>
+          <button class="seg-btn" data-mode="friend">Против друга вживую</button>
+        </div>
+      </div>
+
+      <div class="setting-group" id="botLevelGroup">
+        <label class="setting-label">Уровень сложности бота</label>
+        <div class="segmented-control" id="botDepthControl">
+          <button class="seg-btn" data-depth="1">Легкий</button>
+          <button class="seg-btn selected" data-depth="2">Средний</button>
+          <button class="seg-btn" data-depth="3">Сложный</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Шанс кулдауна Бароннессы</label>
+        <div class="segmented-control" id="cdChanceControl">
+          <button class="seg-btn selected" data-chance="0.5">50% (Канон)</button>
+          <button class="seg-btn" data-chance="1">100% (Тест КД)</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Время на ход (лимит на 1 ход)</label>
+        <div class="segmented-control" id="moveTimeControl">
+          <button class="seg-btn selected" data-movetime="0">Выкл</button>
+          <button class="seg-btn" data-movetime="10">10 сек</button>
+          <button class="seg-btn" data-movetime="15">15 сек</button>
+          <button class="seg-btn" data-movetime="30">30 сек</button>
+          <button class="seg-btn" data-movetime="60">1 мин</button>
+          <button class="seg-btn" data-movetime="180">3 мин</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label class="setting-label">Общее время на партию</label>
+        <div class="segmented-control" id="totalTimeControl">
+          <button class="seg-btn" data-totaltime="60">1 мин</button>
+          <button class="seg-btn" data-totaltime="180">3 мин</button>
+          <button class="seg-btn selected" data-totaltime="300">5 мин</button>
+          <button class="seg-btn" data-totaltime="600">10 мин</button>
+          <button class="seg-btn" data-totaltime="0">Без часов</button>
+        </div>
+      </div>
+
+      <button class="primary-action-btn" id="startNewGameBtn">Начать новую партию</button>
+      <button class="secondary-test-btn" id="setupPromoTestBtn">⚡ Тест: Пешка у края поля (проверить Бароннессу)</button>
+    </div>
+  </div>
+</div>
+
+<div class="dragging-piece" id="draggingPiece"></div>
+
+<script>
+(function() {
+  const PIECE_BASE_URL = 'https://images.chesscomfiles.com/chess-themes/pieces/neo/150/';
+
+  // Встроенный резервный SVG-портрет на случай, если файл baroness.png еще не залит в папку /chess/
+  const FALLBACK_BARONESS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+    <defs>
+      <radialGradient id="bgG" cx="50%" cy="38%" r="65%">
+        <stop offset="0%" stop-color="#9e9080"/>
+        <stop offset="55%" stop-color="#756859"/>
+        <stop offset="100%" stop-color="#494036"/>
+      </radialGradient>
+      <radialGradient id="skinG" cx="50%" cy="42%" r="54%">
+        <stop offset="0%" stop-color="#e3d0ba"/>
+        <stop offset="65%" stop-color="#c9b199"/>
+        <stop offset="92%" stop-color="#ab927a"/>
+        <stop offset="100%" stop-color="#8c735d"/>
+      </radialGradient>
+      <linearGradient id="tunicG" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#534b36"/>
+        <stop offset="55%" stop-color="#413a28"/>
+        <stop offset="100%" stop-color="#2c271b"/>
+      </linearGradient>
+      <linearGradient id="capG" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#514935"/>
+        <stop offset="100%" stop-color="#352f21"/>
+      </linearGradient>
+    </defs>
+    <rect width="400" height="500" fill="url(#bgG)"/>
+    <path d="M98 150 C68 205, 58 270, 72 340 C95 360, 305 360, 328 340 C342 270, 332 205, 302 150 C275 95, 125 95, 98 150 Z" fill="#2b221b"/>
+    <path d="M12 500 L28 368 C38 334, 92 312, 138 304 L200 395 L262 304 C308 312, 362 334, 372 368 L388 500 Z" fill="url(#tunicG)"/>
+    <polygon points="150,305 250,305 215,412 185,412" fill="#6e624c"/>
+    <polygon points="188,338 218,338 228,415 196,415" fill="#4f4634"/>
+    <path d="M126 245 C126 315, 162 346, 206 346 C248 346, 278 315, 278 245 Z" fill="#b49b82"/>
+    <ellipse cx="202" cy="196" rx="92" ry="104" fill="url(#skinG)"/>
+    <path d="M138 158 Q164 146 188 157" fill="none" stroke="#3b2c22" stroke-width="4.2" stroke-linecap="round"/>
+    <path d="M222 156 Q248 144 272 155" fill="none" stroke="#3b2c22" stroke-width="4.2" stroke-linecap="round"/>
+    <ellipse cx="166" cy="172" rx="15" ry="7.5" fill="#f4ece1"/>
+    <circle cx="166" cy="172" r="6.5" fill="#2a1d17"/>
+    <ellipse cx="244" cy="171" rx="15" ry="7.5" fill="#f4ece1"/>
+    <circle cx="243" cy="171" r="6.5" fill="#2a1d17"/>
+    <path d="M174 236 C185 227, 196 229, 204 232 C212 229, 223 227, 234 236 C222 239, 186 239, 174 236 Z" fill="#6d483b"/>
+    <path d="M174 236 C188 251, 220 251, 234 236 C220 241, 188 241, 174 236 Z" fill="#845b4c"/>
+    <path d="M112 96 C135 42, 238 34, 286 78 L296 108 C240 94, 152 94, 112 96 Z" fill="url(#capG)" stroke="#292419" stroke-width="2"/>
+  </svg>`;
+
+  // По умолчанию пробуем загрузить картинку из репозитория (/chess/baroness.png или /chess/baroness.jpg)
+  let baronessPortraitUrl = './baroness.png';
+
+  function resolveRepoBaronessImage() {
+    const candidates = ['./baroness.png', './baroness.jpg', './baroness.jpeg', './baroness.webp'];
+    let idx = 0;
+
+    function tryNext() {
+      if (idx >= candidates.length) {
+        baronessPortraitUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(FALLBACK_BARONESS_SVG);
+        renderBoard();
+        return;
+      }
+      const testImg = new Image();
+      const currentPath = candidates[idx++];
+      testImg.onload = () => {
+        baronessPortraitUrl = currentPath;
+        renderBoard();
+      };
+      testImg.onerror = tryNext;
+      testImg.src = currentPath;
+    }
+
+    tryNext();
+  }
+
+  const SPECIAL_PIECES_CATALOG = {
+    baroness: {
+      id: 'baroness',
+      name: 'Бароннесса Де Синяк',
+      baseType: 'q',
+      shortHint: 'Заменяет ферзя • Доп. шаг 1 кл. • Кулдаун 50% (3 хода)',
+      description: 'Легенда шахматного фронта и героиня битвы за Эрмесовку. Заменяет ферзя: двигается с грацией подиумной модели, атакует со скоростью станкового пулемёта и доводит короля соперника до белого каления.',
+      abilities: 'Ходит так же как ферзь. Но если она срубает вражескую фигуру (особенно ладью или слона — «забирает сумочку»), она получает право сделать ещё один шаг на 1 клетку в любую сторону, чтобы красиво уйти с линии огня.',
+      debuff: 'Из-за высокого содержания долей жира в своем организме, с вероятностью 50% после выполненного хода она уходит в кулдаун на 3 хода. (Поверх фигуры показывает красный значок часов с цифрой внутри, сколько ещё осталось ходов, потом пропадает).'
+    }
+  };
+
+  const PIECE_CODES = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk'];
+  PIECE_CODES.forEach(code => {
+    const img = new Image();
+    img.src = PIECE_BASE_URL + code + '.png';
+  });
+
+  const game = new Chess();
+  let customPieces = {};
+  let stateSnapshots = [];
+  let viewIndex = 0;
+  let selectedSquare = null;
+  let legalMovesForSelected = [];
+  let pendingPromotion = null;
+  let bonusStepState = null;
+
+  let config = {
+    mode: 'bot',
+    botDepth: 2,
+    cooldownChance: 0.5,
+    moveTimeLimit: 0,
+    totalTimeLimit: 300
+  };
+
+  let timers = {
+    w: 298,
+    b: 300,
+    moveRemaining: 0,
+    isPaused: false,
+    isPromotionPaused: false,
+    isGameOver: false,
+    intervalId: null
+  };
+
+  const boardEl = document.getElementById('chessboard');
+  const draggingEl = document.getElementById('draggingPiece');
+  const topClockBox = document.getElementById('topClockBox');
+  const bottomClockBox = document.getElementById('bottomClockBox');
+  const topClockText = document.getElementById('topClockText');
+  const bottomClockText = document.getElementById('bottomClockText');
+  const topMoveBadge = document.getElementById('topMoveBadge');
+  const bottomMoveBadge = document.getElementById('bottomMoveBadge');
+  const topPlayerStatus = document.getElementById('topPlayerStatus');
+  const bottomPlayerStatus = document.getElementById('bottomPlayerStatus');
+  const btnSettings = document.getElementById('btnSettings');
+  const btnPause = document.getElementById('btnPause');
+  const pauseBanner = document.getElementById('pauseBanner');
+  const resumeGameBtn = document.getElementById('resumeGameBtn');
+  const btnBack = document.getElementById('btnBack');
+  const btnForward = document.getElementById('btnForward');
+  const settingsModal = document.getElementById('settingsModal');
+  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  const startNewGameBtn = document.getElementById('startNewGameBtn');
+  const setupPromoTestBtn = document.getElementById('setupPromoTestBtn');
+  const promotionOverlay = document.getElementById('promotionOverlay');
+  const promotionBox = document.getElementById('promotionBox');
+  const specialPromotionList = document.getElementById('specialPromotionList');
+  const charInfoModal = document.getElementById('charInfoModal');
+  const dossierPortraitImg = document.getElementById('dossierPortraitImg');
+  const confirmSpecialCharBtn = document.getElementById('confirmSpecialCharBtn');
+  const backToPromoListBtn = document.getElementById('backToPromoListBtn');
+  const gameoverBanner = document.getElementById('gameoverBanner');
+  const gameoverTitle = document.getElementById('gameoverTitle');
+  const gameoverDesc = document.getElementById('gameoverDesc');
+
+  function cloneCustomPieces(map) {
+    const copy = {};
+    Object.keys(map).forEach(sq => {
+      if (map[sq]) copy[sq] = { ...map[sq] };
+    });
+    return copy;
+  }
+
+  function pushSnapshot(lastMoveObj) {
+    stateSnapshots.push({
+      fen: game.fen(),
+      lastMove: lastMoveObj ? { from: lastMoveObj.from, to: lastMoveObj.to } : null,
+      customPieces: cloneCustomPieces(customPieces)
+    });
+    viewIndex = stateSnapshots.length - 1;
+  }
+
+  pushSnapshot(null);
+
+  let audioCtx = null;
+  function playMoveSound(isCapture, isCheck, isSpecial) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = isSpecial ? 'sawtooth' : (isCheck ? 'triangle' : 'sine');
+      const startFreq = isSpecial ? 520 : (isCheck ? 420 : (isCapture ? 190 : 260));
+      osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(85, audioCtx.currentTime + 0.085);
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.085);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.09);
+    } catch (e) {}
+  }
+
+  function formatTime(sec) {
+    if (sec <= 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function getPlayableMoves(squareFilter) {
+    if (bonusStepState) {
+      if (squareFilter && squareFilter !== bonusStepState.square) return [];
+      return bonusStepState.targets.map(targetSq => ({
+        from: bonusStepState.square,
+        to: targetSq,
+        flags: 'b'
+      }));
+    }
+
+    if (squareFilter && customPieces[squareFilter] && customPieces[squareFilter].cooldown > 0) {
+      return [];
+    }
+
+    const opts = squareFilter ? { square: squareFilter, verbose: true } : { verbose: true };
+    const rawMoves = game.moves(opts);
+    return rawMoves.filter(m => {
+      const cp = customPieces[m.from];
+      return !(cp && cp.cooldown > 0);
+    });
+  }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    const isViewingHistory = viewIndex < stateSnapshots.length - 1;
+    const activeSnapshot = stateSnapshots[viewIndex];
+
+    const displayGame = isViewingHistory ? new Chess(activeSnapshot.fen) : game;
+    const displayCustomMap = isViewingHistory ? activeSnapshot.customPieces : customPieces;
+    const lastMove = activeSnapshot ? activeSnapshot.lastMove : null;
+
+    const boardState = displayGame.board();
+    const turnColor = displayGame.turn();
+    const inCheck = displayGame.in_check();
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+    for (let r = 0; r < 8; r++) {
+      const rankNum = 8 - r;
+      for (let f = 0; f < 8; f++) {
+        const fileChar = files[f];
+        const sqName = fileChar + rankNum;
+        const isLight = (r + f) % 2 === 0;
+
+        const sqDiv = document.createElement('div');
+        sqDiv.className = 'square ' + (isLight ? 'light' : 'dark');
+        sqDiv.dataset.square = sqName;
+
+        if (
+          selectedSquare === sqName ||
+          (lastMove && (lastMove.from === sqName || lastMove.to === sqName))
+        ) {
+          sqDiv.classList.add('highlighted');
+        }
+
+        if (!isViewingHistory && bonusStepState && bonusStepState.square === sqName) {
+          sqDiv.classList.add('bonus-origin');
+        }
+
+        if (f === 0) {
+          const rankSpan = document.createElement('span');
+          rankSpan.className = 'coord-rank';
+          rankSpan.textContent = rankNum;
+          sqDiv.appendChild(rankSpan);
+        }
+
+        if (r === 7) {
+          const fileSpan = document.createElement('span');
+          fileSpan.className = 'coord-file';
+          fileSpan.textContent = fileChar;
+          sqDiv.appendChild(fileSpan);
+        }
+
+        const pieceObj = boardState[r][f];
+        const customMeta = displayCustomMap[sqName];
+
+        if (pieceObj) {
+          if (inCheck && pieceObj.type === 'k' && pieceObj.color === turnColor) {
+            sqDiv.classList.add('in-check');
+          }
+
+          const pieceDiv = document.createElement('div');
+
+          if (customMeta && customMeta.id === 'baroness') {
+            const cdCount = Number(customMeta.cooldown) || 0;
+            pieceDiv.className = `piece custom-baroness color-${pieceObj.color}` + (cdCount > 0 ? ' on-cooldown' : '');
+            pieceDiv.style.backgroundImage = `url("${baronessPortraitUrl}")`;
+
+            if (cdCount > 0) {
+              const cdBadge = document.createElement('div');
+              cdBadge.className = 'cooldown-badge';
+              cdBadge.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <polyline points="12 7 12 12 15 14"></polyline>
+                </svg>
+                <span>${cdCount}</span>
+              `;
+              pieceDiv.appendChild(cdBadge);
+            }
+
+            sqDiv.appendChild(pieceDiv);
+
+            const crownTag = document.createElement('div');
+            crownTag.className = `baroness-crown-tag color-${pieceObj.color}`;
+            crownTag.textContent = '♛';
+            sqDiv.appendChild(crownTag);
+          } else {
+            pieceDiv.className = 'piece';
+            const code = pieceObj.color + pieceObj.type;
+            pieceDiv.style.backgroundImage = `url("${PIECE_BASE_URL}${code}.png")`;
+            sqDiv.appendChild(pieceDiv);
+          }
+        }
+
+        if (!isViewingHistory) {
+          const legalMove = legalMovesForSelected.find(m => m.to === sqName);
+          if (legalMove) {
+            const indicator = document.createElement('div');
+            if (bonusStepState) {
+              indicator.className = 'legal-dot bonus-step-dot';
+            } else {
+              indicator.className = pieceObj ? 'legal-capture' : 'legal-dot';
+            }
+            sqDiv.appendChild(indicator);
+          }
+        }
+
+        boardEl.appendChild(sqDiv);
+      }
+    }
+
+    updateNavButtons();
+    updateClockUI();
+  }
+
+  function updateNavButtons() {
+    btnBack.classList.toggle('disabled', viewIndex === 0);
+    btnForward.classList.toggle('disabled', viewIndex === stateSnapshots.length - 1);
+  }
+
+  function updateClockUI() {
+    const turn = game.turn();
+    const isFrozen = timers.isPromotionPaused;
+
+    if (config.totalTimeLimit === 0 && config.moveTimeLimit > 0) {
+      topClockText.textContent = turn === 'b' ? formatTime(timers.moveRemaining) : formatTime(config.moveTimeLimit);
+      bottomClockText.textContent = turn === 'w' ? formatTime(timers.moveRemaining) : formatTime(config.moveTimeLimit);
+      topMoveBadge.textContent = isFrozen && turn === 'b' ? '⏸ Выбор фигуры' : '';
+      bottomMoveBadge.textContent = isFrozen && turn === 'w' ? '⏸ Выбор фигуры' : '';
+    } else if (config.totalTimeLimit === 0 && config.moveTimeLimit === 0) {
+      topClockText.textContent = '∞';
+      bottomClockText.textContent = '∞';
+      topMoveBadge.textContent = '';
+      bottomMoveBadge.textContent = '';
+    } else {
+      topClockText.textContent = formatTime(timers.b);
+      bottomClockText.textContent = formatTime(timers.w);
+
+      if (isFrozen) {
+        topMoveBadge.textContent = turn === 'b' ? '⏸ Пауза выбора' : '';
+        bottomMoveBadge.textContent = turn === 'w' ? '⏸ Пауза выбора' : '';
+      } else if (config.moveTimeLimit > 0 && !timers.isGameOver) {
+        topMoveBadge.textContent = turn === 'b' ? `Ход: ${timers.moveRemaining}с` : '';
+        bottomMoveBadge.textContent = turn === 'w' ? `Ход: ${timers.moveRemaining}с` : '';
+      } else {
+        topMoveBadge.textContent = '';
+        bottomMoveBadge.textContent = '';
+      }
+    }
+
+    if (turn === 'w') {
+      bottomClockBox.classList.add('active');
+      topClockBox.classList.remove('active');
+      bottomClockBox.classList.toggle('frozen-clock', isFrozen);
+      topClockBox.classList.remove('frozen-clock');
+    } else {
+      topClockBox.classList.add('active');
+      bottomClockBox.classList.remove('active');
+      topClockBox.classList.toggle('frozen-clock', isFrozen);
+      bottomClockBox.classList.remove('frozen-clock');
+    }
+
+    bottomClockBox.classList.toggle('low-time', config.totalTimeLimit > 0 && timers.w < 20 && turn === 'w');
+    topClockBox.classList.toggle('low-time', config.totalTimeLimit > 0 && timers.b < 20 && turn === 'b');
+  }
+
+  function startClockLoop() {
+    if (timers.intervalId) clearInterval(timers.intervalId);
+    timers.intervalId = setInterval(() => {
+      if (timers.isPaused || timers.isPromotionPaused || timers.isGameOver) return;
+      const turn = game.turn();
+
+      if (config.moveTimeLimit > 0) {
+        timers.moveRemaining--;
+        if (timers.moveRemaining <= 0) {
+          timers.moveRemaining = 0;
+          updateClockUI();
+          const winner = turn === 'w' ? 'Черные (Соперник)' : 'Белые (derkhsoul)';
+          endGame('Время на ход истекло!', `${winner} победили по времени.`);
+          return;
+        }
+      }
+
+      if (config.totalTimeLimit > 0) {
+        timers[turn]--;
+        if (timers[turn] <= 0) {
+          timers[turn] = 0;
+          updateClockUI();
+          const winner = turn === 'w' ? 'Черные (Соперник)' : 'Белые (derkhsoul)';
+          endGame('Флаг упал!', `${winner} победили по времени.`);
+          return;
+        }
+      }
+
+      updateClockUI();
+    }, 1000);
+  }
+
+  function endGame(title, description) {
+    timers.isGameOver = true;
+    timers.isPromotionPaused = false;
+    bonusStepState = null;
+    gameoverTitle.textContent = title;
+    gameoverDesc.textContent = description;
+    gameoverBanner.classList.add('active');
+    bottomPlayerStatus.textContent = title;
+    setTimeout(() => {
+      settingsModal.classList.add('open');
+    }, 650);
+  }
+
+  function checkGameStateAfterMove() {
+    const playableMoves = getPlayableMoves();
+    if (game.in_checkmate() || (playableMoves.length === 0 && game.in_check())) {
+      const winner = game.turn() === 'w' ? 'Соперник (Черные)' : 'derkhsoul (Белые)';
+      endGame('Шах и мат!', `Победа игрока ${winner}.`);
+      return true;
+    }
+    if (
+      game.in_draw() ||
+      game.in_stalemate() ||
+      game.in_threefold_repetition() ||
+      (playableMoves.length === 0 && !game.in_check())
+    ) {
+      let reason = 'Ничья по правилам шахмат.';
+      if (playableMoves.length === 0) reason = 'Пат — у стороны нет доступных ходов.';
+      else if (game.in_threefold_repetition()) reason = 'Троекратное повторение позиции.';
+      else if (game.insufficient_material()) reason = 'Недостаточно фигур для мата.';
+      endGame('Ничья!', reason);
+      return true;
+    }
+    return false;
+  }
+
+  // Прямая проверка безопасности короля на матрице 8x8 для бонусного шага
+  function isKingAttackedOnBoard(boardMatrix, kingColor) {
+    const enemyColor = kingColor === 'w' ? 'b' : 'w';
+    let kr = -1, kc = -1;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = boardMatrix[r][c];
+        if (p && p.type === 'k' && p.color === kingColor) {
+          kr = r;
+          kc = c;
+          break;
+        }
+      }
+      if (kr !== -1) break;
+    }
+    if (kr === -1) return true;
+
+    const pawnAttackRow = kingColor === 'w' ? kr - 1 : kr + 1;
+    if (pawnAttackRow >= 0 && pawnAttackRow < 8) {
+      for (const dc of [-1, 1]) {
+        const pc = kc + dc;
+        if (pc >= 0 && pc < 8) {
+          const p = boardMatrix[pawnAttackRow][pc];
+          if (p && p.color === enemyColor && p.type === 'p') return true;
+        }
+      }
+    }
+
+    const knightOffsets = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+    for (const [dr, dc] of knightOffsets) {
+      const nr = kr + dr, nc = kc + dc;
+      if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+        const p = boardMatrix[nr][nc];
+        if (p && p.color === enemyColor && p.type === 'n') return true;
+      }
+    }
+
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = kr + dr, nc = kc + dc;
+        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+          const p = boardMatrix[nr][nc];
+          if (p && p.color === enemyColor && p.type === 'k') return true;
+        }
+      }
+    }
+
+    const orthoDirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (const [dr, dc] of orthoDirs) {
+      let nr = kr + dr, nc = kc + dc;
+      while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+        const p = boardMatrix[nr][nc];
+        if (p) {
+          if (p.color === enemyColor && (p.type === 'r' || p.type === 'q')) return true;
+          break;
+        }
+        nr += dr;
+        nc += dc;
+      }
+    }
+
+    const diagDirs = [[-1,-1],[-1,1],[1,-1],[1,1]];
+    for (const [dr, dc] of diagDirs) {
+      let nr = kr + dr, nc = kc + dc;
+      while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+        const p = boardMatrix[nr][nc];
+        if (p) {
+          if (p.color === enemyColor && (p.type === 'b' || p.type === 'q')) return true;
+          break;
+        }
+        nr += dr;
+        nc += dc;
+      }
+    }
+
+    return false;
+  }
+
+  function computeBonusEscapeSquares(originSq, moverColor) {
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const fIdx = files.indexOf(originSq[0]);
+    const rank = parseInt(originSq[1], 10);
+    const origRow = 8 - rank;
+    const origCol = fIdx;
+    const currentBoard = game.board();
+    const validTargets = [];
+
+    for (let df = -1; df <= 1; df++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (df === 0 && dr === 0) continue;
+        const nf = fIdx + df;
+        const nr = rank + dr;
+        if (nf < 0 || nf > 7 || nr < 1 || nr > 8) continue;
+
+        const targetRow = 8 - nr;
+        const targetCol = nf;
+        if (currentBoard[targetRow][targetCol]) continue;
+
+        const clonedBoard = currentBoard.map(row => row.map(cell => (cell ? { ...cell } : null)));
+        clonedBoard[origRow][origCol] = null;
+        clonedBoard[targetRow][targetCol] = { type: 'q', color: moverColor };
+
+        if (!isKingAttackedOnBoard(clonedBoard, moverColor)) {
+          validTargets.push(files[nf] + nr);
+        }
+      }
+    }
+    return validTargets;
+  }
+
+  function applyTurnToGameInstance(targetTurnColor, movePieceFrom = null, movePieceTo = null, moverColor = null) {
+    if (movePieceFrom && movePieceTo && movePieceFrom !== movePieceTo) {
+      game.remove(movePieceFrom);
+      game.put({ type: 'q', color: moverColor }, movePieceTo);
+    }
+    const tokens = game.fen().split(' ');
+    tokens[1] = targetTurnColor;
+    tokens[3] = '-';
+    game.load(tokens.join(' '));
+  }
+
+  function finalizeTurnAndProcessCooldowns(moverColor, movedBaronessSquare) {
+    Object.keys(customPieces).forEach(sq => {
+      const cp = customPieces[sq];
+      if (cp && cp.color === moverColor && sq !== movedBaronessSquare && cp.cooldown > 0) {
+        cp.cooldown = Math.max(0, cp.cooldown - 1);
+      }
+    });
+
+    if (movedBaronessSquare && customPieces[movedBaronessSquare]) {
+      const cp = customPieces[movedBaronessSquare];
+      const shouldTriggerCooldown =
+        config.cooldownChance >= 1 ||
+        cp.missedRolls >= 1 ||
+        Math.random() < config.cooldownChance;
+
+      if (shouldTriggerCooldown) {
+        cp.cooldown = 3;
+        cp.missedRolls = 0;
+      } else {
+        cp.cooldown = 0;
+        cp.missedRolls = (cp.missedRolls || 0) + 1;
+      }
+    }
+
+    if (config.moveTimeLimit > 0) {
+      timers.moveRemaining = config.moveTimeLimit;
+    }
+  }
+
+  function completeBonusStep(targetSqOrNull) {
+    if (!bonusStepState) return;
+    const { square: originSq, color: moverColor, baronessMeta } = bonusStepState;
+    const opponentColor = moverColor === 'w' ? 'b' : 'w';
+    let finalSq = originSq;
+
+    const preservedMeta = baronessMeta || customPieces[originSq] || {
+      id: 'baroness',
+      color: moverColor,
+      cooldown: 0,
+      missedRolls: 0
+    };
+
+    if (targetSqOrNull && bonusStepState.targets.includes(targetSqOrNull)) {
+      delete customPieces[originSq];
+      finalSq = targetSqOrNull;
+      applyTurnToGameInstance(opponentColor, originSq, finalSq, moverColor);
+    } else {
+      applyTurnToGameInstance(opponentColor);
+    }
+
+    customPieces[finalSq] = preservedMeta;
+    bonusStepState = null;
+    selectedSquare = null;
+    legalMovesForSelected = [];
+
+    finalizeTurnAndProcessCooldowns(moverColor, finalSq);
+    pushSnapshot({ from: originSq, to: finalSq });
+
+    playMoveSound(false, game.in_check(), true);
+    renderBoard();
+
+    if (checkGameStateAfterMove()) return;
+
+    if (config.mode === 'bot' && game.turn() === 'b' && !timers.isGameOver) {
+      topPlayerStatus.textContent = 'Думает...';
+      setTimeout(makeBotMove, 340);
+    }
+  }
+
+  function executeMove(moveObj, specialPieceId = null) {
+    const moverColor = game.turn();
+    const movingCustom = customPieces[moveObj.from] ? { ...customPieces[moveObj.from] } : null;
+
+    const result = game.move(moveObj);
+    if (!result) return false;
+
+    if (customPieces[result.to]) {
+      delete customPieces[result.to];
+    }
+
+    let movedExistingBaronessSq = null;
+    if (movingCustom) {
+      delete customPieces[result.from];
+      customPieces[result.to] = movingCustom;
+      if (movingCustom.id === 'baroness') movedExistingBaronessSq = result.to;
+    } else if (specialPieceId === 'baroness') {
+      // При появлении из пешки сразу КД не выдается
+      customPieces[result.to] = {
+        id: 'baroness',
+        color: moverColor,
+        cooldown: 0,
+        missedRolls: 0
+      };
+    }
+
+    selectedSquare = null;
+    legalMovesForSelected = [];
+
+    // Дополнительный шаг на 1 клетку после хода уже существующей Бароннессы
+    if (movedExistingBaronessSq && !game.in_checkmate()) {
+      const escapeTargets = computeBonusEscapeSquares(result.to, moverColor);
+      if (escapeTargets.length > 0) {
+        const currentMeta = { ...customPieces[result.to] };
+
+        if (config.mode === 'bot' && moverColor === 'b') {
+          const botStep = escapeTargets[Math.floor(Math.random() * escapeTargets.length)];
+          bonusStepState = {
+            square: result.to,
+            color: moverColor,
+            targets: escapeTargets,
+            capturedType: result.captured,
+            baronessMeta: currentMeta
+          };
+          completeBonusStep(botStep);
+          return true;
+        }
+
+        applyTurnToGameInstance(moverColor);
+        customPieces[result.to] = currentMeta;
+
+        bonusStepState = {
+          square: result.to,
+          color: moverColor,
+          targets: escapeTargets,
+          capturedType: result.captured,
+          baronessMeta: currentMeta
+        };
+
+        selectedSquare = result.to;
+        legalMovesForSelected = getPlayableMoves(result.to);
+        playMoveSound(Boolean(result.captured), false, true);
+        renderBoard();
+        return true;
+      }
+    }
+
+    finalizeTurnAndProcessCooldowns(moverColor, movedExistingBaronessSq);
+    pushSnapshot(result);
+
+    playMoveSound(Boolean(result.captured), game.in_check(), Boolean(specialPieceId));
+    renderBoard();
+
+    if (checkGameStateAfterMove()) return true;
+
+    if (config.mode === 'bot' && game.turn() === 'b' && !timers.isGameOver) {
+      topPlayerStatus.textContent = 'Думает...';
+      setTimeout(makeBotMove, 320);
+    }
+
+    return true;
+  }
+
+  function tryMove(fromSq, toSq) {
+    if (timers.isGameOver || timers.isPaused || timers.isPromotionPaused) return false;
+    if (viewIndex < stateSnapshots.length - 1) {
+      viewIndex = stateSnapshots.length - 1;
+    }
+    if (config.mode === 'bot' && game.turn() === 'b') return false;
+
+    if (bonusStepState) {
+      if (fromSq === bonusStepState.square && bonusStepState.targets.includes(toSq)) {
+        completeBonusStep(toSq);
+        return true;
+      }
+      return false;
+    }
+
+    const moves = getPlayableMoves(fromSq);
+    const matchingMoves = moves.filter(m => m.to === toSq);
+    if (matchingMoves.length === 0) return false;
+
+    if (matchingMoves.some(m => m.flags.includes('p'))) {
+      openPromotionModal(fromSq, toSq, game.turn());
+      return true;
+    }
+
+    return executeMove({ from: fromSq, to: toSq });
+  }
+
+  function openPromotionModal(fromSq, toSq, color) {
+    pendingPromotion = { fromSq, toSq, color, selectedSpecialId: null };
+    timers.isPromotionPaused = true;
+    updateClockUI();
+
+    promotionBox.innerHTML = '';
+    const classicPieces = ['q', 'n', 'r', 'b'];
+    classicPieces.forEach(p => {
+      const btn = document.createElement('div');
+      btn.className = 'promo-option';
+      btn.style.backgroundImage = `url("${PIECE_BASE_URL}${color}${p}.png")`;
+      btn.addEventListener('click', () => {
+        promotionOverlay.classList.remove('promotion-overlay-active');
+        timers.isPromotionPaused = false;
+        pendingPromotion = null;
+        executeMove({ from: fromSq, to: toSq, promotion: p });
+      });
+      promotionBox.appendChild(btn);
+    });
+
+    specialPromotionList.innerHTML = '';
+    Object.values(SPECIAL_PIECES_CATALOG).forEach(spec => {
+      const item = document.createElement('div');
+      item.className = 'special-promo-item';
+      item.innerHTML = `
+        <div class="special-promo-thumb" style="background-image: url('${baronessPortraitUrl}')"></div>
+        <div class="special-promo-info">
+          <div class="special-promo-title-row">
+            <span class="special-promo-name">${spec.name}</span>
+            <span class="new-badge">NEW</span>
+          </div>
+          <div class="special-promo-sub">${spec.shortHint}</div>
+        </div>
+      `;
+      item.addEventListener('click', () => {
+        openSpecialCharacterDossier(spec.id);
+      });
+      specialPromotionList.appendChild(item);
+    });
+
+    promotionOverlay.classList.add('promotion-overlay-active');
+  }
+
+  function openSpecialCharacterDossier(specialId) {
+    const spec = SPECIAL_PIECES_CATALOG[specialId];
+    if (!spec || !pendingPromotion) return;
+
+    pendingPromotion.selectedSpecialId = specialId;
+    dossierPortraitImg.style.backgroundImage = `url("${baronessPortraitUrl}")`;
+    document.getElementById('dossierCharName').textContent = spec.name;
+    document.getElementById('dossierDescText').textContent = spec.description;
+    document.getElementById('dossierAbilityText').textContent = spec.abilities;
+    document.getElementById('dossierDebuffText').textContent = spec.debuff;
+    confirmSpecialCharBtn.textContent = `Выбрать фигуру: ${spec.name}`;
+
+    charInfoModal.classList.add('open');
+  }
+
+  backToPromoListBtn.addEventListener('click', () => {
+    charInfoModal.classList.remove('open');
+  });
+
+  confirmSpecialCharBtn.addEventListener('click', () => {
+    if (!pendingPromotion) return;
+    const { fromSq, toSq, selectedSpecialId } = pendingPromotion;
+    const spec = SPECIAL_PIECES_CATALOG[selectedSpecialId] || SPECIAL_PIECES_CATALOG.baroness;
+
+    charInfoModal.classList.remove('open');
+    promotionOverlay.classList.remove('promotion-overlay-active');
+    timers.isPromotionPaused = false;
+    pendingPromotion = null;
+
+    executeMove({ from: fromSq, to: toSq, promotion: spec.baseType }, spec.id);
+  });
+
+  const PIECE_WEIGHTS = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+
+  function evaluateBoard(chessInstance) {
+    if (chessInstance.in_checkmate()) {
+      return chessInstance.turn() === 'w' ? -99999 : 99999;
+    }
+    if (chessInstance.in_draw() || chessInstance.in_stalemate()) return 0;
+
+    const b = chessInstance.board();
+    let score = 0;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = b[r][c];
+        if (!p) continue;
+        const val = PIECE_WEIGHTS[p.type] || 0;
+        score += p.color === 'w' ? val : -val;
+      }
+    }
+    return score;
+  }
+
+  function minimax(chessInstance, depth, alpha, beta, isMaximizing) {
+    if (depth === 0 || chessInstance.game_over()) {
+      return evaluateBoard(chessInstance);
+    }
+    const moves = chessInstance.moves({ verbose: true });
+    moves.sort((a, b) => (b.captured ? 10 : 0) - (a.captured ? 10 : 0));
+
+    if (isMaximizing) {
+      let maxEval = -Infinity;
+      for (let i = 0; i < moves.length; i++) {
+        chessInstance.move(moves[i]);
+        const ev = minimax(chessInstance, depth - 1, alpha, beta, false);
+        chessInstance.undo();
+        if (ev > maxEval) maxEval = ev;
+        if (ev > alpha) alpha = ev;
+        if (beta <= alpha) break;
+      }
+      return maxEval;
+    } else {
+      let minEval = Infinity;
+      for (let i = 0; i < moves.length; i++) {
+        chessInstance.move(moves[i]);
+        const ev = minimax(chessInstance, depth - 1, alpha, beta, true);
+        chessInstance.undo();
+        if (ev < minEval) minEval = ev;
+        if (ev < beta) beta = ev;
+        if (beta <= alpha) break;
+      }
+      return minEval;
+    }
+  }
+
+  function makeBotMove() {
+    if (timers.isGameOver || game.turn() !== 'b') return;
+    if (timers.isPaused || timers.isPromotionPaused) {
+      setTimeout(makeBotMove, 400);
+      return;
+    }
+
+    const moves = getPlayableMoves();
+    if (moves.length === 0) {
+      checkGameStateAfterMove();
+      return;
+    }
+
+    moves.sort((a, b) => (b.captured ? 12 : 0) - (a.captured ? 12 : 0));
+    let bestMove = moves[0];
+    let bestValue = Infinity;
+    const searchChess = new Chess(game.fen());
+
+    for (let i = 0; i < moves.length; i++) {
+      const m = searchChess.move(moves[i]);
+      if (!m) continue;
+      const boardVal = minimax(searchChess, config.botDepth - 1, -Infinity, Infinity, true);
+      searchChess.undo();
+      const jitter = (Math.random() - 0.5) * 8;
+      if (boardVal + jitter < bestValue) {
+        bestValue = boardVal + jitter;
+        bestMove = moves[i];
+      }
+    }
+
+    topPlayerStatus.textContent = '';
+    const promoteToBaroness = bestMove.flags && bestMove.flags.includes('p') && Math.random() < 0.7;
+    executeMove(bestMove, promoteToBaroness ? 'baroness' : null);
+  }
+
+  let isDragging = false;
+  let dragSourceSquare = null;
+
+  function getSquareFromPoint(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    if (!el) return null;
+    const sqEl = el.closest('.square');
+    return sqEl ? sqEl.dataset.square : null;
+  }
+
+  function handlePointerDown(e) {
+    if (timers.isGameOver || timers.isPaused || timers.isPromotionPaused) return;
+    if (config.mode === 'bot' && game.turn() === 'b') return;
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const sq = getSquareFromPoint(clientX, clientY);
+    if (!sq) return;
+
+    if (bonusStepState) {
+      if (bonusStepState.targets.includes(sq)) {
+        completeBonusStep(sq);
+        return;
+      }
+      if (sq === bonusStepState.square) {
+        isDragging = true;
+        dragSourceSquare = sq;
+        draggingEl.className = 'dragging-piece custom-drag';
+        draggingEl.style.backgroundImage = `url("${baronessPortraitUrl}")`;
+        draggingEl.style.left = clientX + 'px';
+        draggingEl.style.top = clientY + 'px';
+        draggingEl.style.display = 'block';
+        return;
+      }
+      completeBonusStep(null);
+      return;
+    }
+
+    if (selectedSquare && legalMovesForSelected.some(m => m.to === sq)) {
+      tryMove(selectedSquare, sq);
+      return;
+    }
+
+    if (viewIndex < stateSnapshots.length - 1) {
+      viewIndex = stateSnapshots.length - 1;
+      renderBoard();
+    }
+
+    const customOnSq = customPieces[sq];
+    if (customOnSq && customOnSq.color === game.turn() && customOnSq.cooldown > 0) {
+      selectedSquare = null;
+      legalMovesForSelected = [];
+      renderBoard();
+      return;
+    }
+
+    const pieceOnSq = game.get(sq);
+    if (pieceOnSq && pieceOnSq.color === game.turn()) {
+      selectedSquare = sq;
+      legalMovesForSelected = getPlayableMoves(sq);
+      renderBoard();
+
+      isDragging = true;
+      dragSourceSquare = sq;
+
+      if (customOnSq && customOnSq.id === 'baroness') {
+        draggingEl.className = 'dragging-piece custom-drag';
+        draggingEl.style.backgroundImage = `url("${baronessPortraitUrl}")`;
+      } else {
+        draggingEl.className = 'dragging-piece';
+        const code = pieceOnSq.color + pieceOnSq.type;
+        draggingEl.style.backgroundImage = `url("${PIECE_BASE_URL}${code}.png")`;
+      }
+
+      draggingEl.style.left = clientX + 'px';
+      draggingEl.style.top = clientY + 'px';
+      draggingEl.style.display = 'block';
+
+      const sourceSquareEl = boardEl.querySelector(`[data-square="${sq}"] .piece`);
+      if (sourceSquareEl) sourceSquareEl.style.opacity = '0.25';
+    } else {
+      selectedSquare = null;
+      legalMovesForSelected = [];
+      renderBoard();
+    }
+  }
+
+  function handlePointerMove(e) {
+    if (!isDragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    draggingEl.style.left = clientX + 'px';
+    draggingEl.style.top = clientY + 'px';
+  }
+
+  function handlePointerUp(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    draggingEl.style.display = 'none';
+
+    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const targetSq = getSquareFromPoint(clientX, clientY);
+
+    if (bonusStepState) {
+      if (targetSq && bonusStepState.targets.includes(targetSq)) {
+        completeBonusStep(targetSq);
+      } else if (targetSq === bonusStepState.square) {
+        completeBonusStep(null);
+      } else {
+        renderBoard();
+      }
+      dragSourceSquare = null;
+      return;
+    }
+
+    if (targetSq && targetSq !== dragSourceSquare && legalMovesForSelected.some(m => m.to === targetSq)) {
+      tryMove(dragSourceSquare, targetSq);
+    } else {
+      renderBoard();
+    }
+    dragSourceSquare = null;
+  }
+
+  boardEl.addEventListener('mousedown', handlePointerDown);
+  window.addEventListener('mousemove', handlePointerMove);
+  window.addEventListener('mouseup', handlePointerUp);
+
+  boardEl.addEventListener('touchstart', handlePointerDown, { passive: true });
+  window.addEventListener('touchmove', handlePointerMove, { passive: true });
+  window.addEventListener('touchend', handlePointerUp);
+
+  function togglePause() {
+    if (timers.isGameOver) return;
+    timers.isPaused = !timers.isPaused;
+    pauseBanner.classList.toggle('visible', timers.isPaused);
+    btnPause.classList.toggle('active-toggle', timers.isPaused);
+  }
+
+  btnPause.addEventListener('click', togglePause);
+  resumeGameBtn.addEventListener('click', togglePause);
+
+  btnBack.addEventListener('click', () => {
+    if (viewIndex > 0) {
+      viewIndex--;
+      selectedSquare = null;
+      legalMovesForSelected = [];
+      renderBoard();
+    }
+  });
+
+  btnForward.addEventListener('click', () => {
+    if (viewIndex < stateSnapshots.length - 1) {
+      viewIndex++;
+      selectedSquare = null;
+      legalMovesForSelected = [];
+      renderBoard();
+    }
+  });
+
+  btnSettings.addEventListener('click', () => settingsModal.classList.add('open'));
+  closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('open'));
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) settingsModal.classList.remove('open');
+  });
+
+  function setupSegmentedControl(containerId, callback) {
+    const container = document.getElementById(containerId);
+    const buttons = container.querySelectorAll('.seg-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        callback(btn.dataset);
+      });
+    });
+  }
+
+  setupSegmentedControl('modeControl', (data) => {
+    config.mode = data.mode;
+    document.getElementById('botLevelGroup').style.display = config.mode === 'bot' ? 'block' : 'none';
+  });
+
+  setupSegmentedControl('botDepthControl', (data) => {
+    config.botDepth = parseInt(data.depth, 10);
+  });
+
+  setupSegmentedControl('cdChanceControl', (data) => {
+    config.cooldownChance = parseFloat(data.chance);
+  });
+
+  setupSegmentedControl('moveTimeControl', (data) => {
+    config.moveTimeLimit = parseInt(data.movetime, 10);
+  });
+
+  setupSegmentedControl('totalTimeControl', (data) => {
+    config.totalTimeLimit = parseInt(data.totaltime, 10);
+  });
+
+  function resetMatchState(customStartFen = null) {
+    if (customStartFen) {
+      game.load(customStartFen);
+    } else {
+      game.reset();
+    }
+    customPieces = {};
+    stateSnapshots = [];
+    pushSnapshot(null);
+
+    selectedSquare = null;
+    legalMovesForSelected = [];
+    pendingPromotion = null;
+    bonusStepState = null;
+
+    timers.w = config.totalTimeLimit > 0 ? config.totalTimeLimit : 0;
+    timers.b = config.totalTimeLimit > 0 ? config.totalTimeLimit : 0;
+    timers.moveRemaining = config.moveTimeLimit;
+    timers.isPaused = false;
+    timers.isPromotionPaused = false;
+    timers.isGameOver = false;
+
+    pauseBanner.classList.remove('visible');
+    btnPause.classList.remove('active-toggle');
+    gameoverBanner.classList.remove('active');
+    promotionOverlay.classList.remove('promotion-overlay-active');
+    charInfoModal.classList.remove('open');
+    topPlayerStatus.textContent = '';
+    bottomPlayerStatus.textContent = '';
+
+    settingsModal.classList.remove('open');
+    renderBoard();
+    startClockLoop();
+  }
+
+  startNewGameBtn.addEventListener('click', () => resetMatchState(null));
+
+  setupPromoTestBtn.addEventListener('click', () => {
+    const promoTestFen = '1rbqkbnr/Pppppppp/8/8/8/8/1PPPPPPP/RNBQKBNR w KQk - 0 1';
+    resetMatchState(promoTestFen);
+  });
+
+  resolveRepoBaronessImage();
+  renderBoard();
+  startClockLoop();
+})();
+</script>
+</body>
+</html>
